@@ -56,10 +56,11 @@ rm(temp)
 ```{r,include=FALSE}
 Sys.setlocale ("LC_TIME", "English")
 ```
+
 ```{r}
 #Print the Adjusted Close Price line chart for each company. The adjusted closing price provides a more accurate price history
 for(i in 1:length(company_list)){
-  print(plot(eval(parse(text =company_list[i]))$Adjusted, main = paste0(company_list[i]," Adjusted Close Price"), ylab = "Price", xlab = "Date", type = "l", col = "blue"))
+  print(plot(eval(parse(text =company_list[i]))$Adjusted, main = paste0(company_list[i]," Adjusted Close Price"), ylab = "Price", xlab = "Date", type = "l", col = "red"))
 }
 #From the line chart, we can see that except for Cyfrowy Polsat and CD Project, the stock prices of other companies have been relatively stable since June 2023.
 ```
@@ -67,6 +68,7 @@ for(i in 1:length(company_list)){
 #Define a list MA_days. The author used three different moving average periods of 10, 20 and 30. These are the commonly used moving average days.
 MA_days <- c(10, 20, 30)
 #Since there are insufficient windows, so I fill in NA value.
+
 for(i in 1:20){
   temp = eval(parse(text =company_list[i]))
   temp$`MA10` <- rollmean(temp$Adjusted, k = 10, fill = NA,align = "right")
@@ -79,4 +81,49 @@ rm(temp)
 for(i in 1:20){
   print(head(eval(parse(text =company_list[i])), 5))
 }
+```
+```{r}
+#Define a function plot_graphic to draw charts, and draw the smoothed data of 20 companies (columns 6 to 9)
+plot_graphic <- function(company, company_string) {
+  matplot(company[, 6:9], type = "l", xlab = "Date", ylab = "Price", main = company_string, col = 1:4)
+  legend("topleft", legend = colnames(company)[6:9], col = 1:4, lty = 1, cex = 0.8)
+}
+
+for (company_name in company_list) {   
+  company_data <- eval(parse(text = company_name))
+  plot_graphic(company_data, company_name)
+}
+```
+```{r}
+#Calculate the difference of the Adjusted column
+#Use the lines function to add Kernel Density Estimation to an existing graph
+calculate_daily_returns <- function(company_data) {
+  company_data$`Daily Returns` <- diff(company_data$Adjusted) / lag(company_data$Adjusted, 1)
+  return(company_data)
+}
+
+plot_daily_returns_histogram <- function(company_data, company_name) {
+  daily_returns <- na.omit(company_data$`Daily Returns`)
+  hist(daily_returns, breaks = 50, col = 'dodgerblue', main = company_name, xlab = 'Daily Returns', ylab = 'Count', ylim = c(0, 40))
+  lines(density(daily_returns), col = "blue", lwd = 2)
+}
+
+for (company_name in company_list) {
+  company_data <- eval(parse(text = company_name))
+  company_data <- calculate_daily_returns(company_data)
+  assign(company_name, company_data)
+  plot_daily_returns_histogram(company_data, company_name)
+}
+```
+```{r}
+# Create dataframe with stock returns
+
+
+stock_returns <- list()
+for(i in 1:20){
+  stock_returns[[i]] <- eval(parse(text =company_list[i]))$`Daily Returns`
+}
+stock_returns <- do.call(cbind,stock_returns)
+colnames(stock_returns) <- company_list
+head(stock_returns)
 ```
