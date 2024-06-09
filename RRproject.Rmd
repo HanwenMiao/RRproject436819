@@ -1,7 +1,7 @@
 ---
-title: "Portfolio optimization of WIG20 stock"
+title: "Portfolio optimization of WIG20 stocks"
 author: "Hanwen Miao 436819"
-date: "2024-06-05"
+date: "2024-06-08"
 output: html_notebook
 ---
 
@@ -9,7 +9,28 @@ output: html_notebook
 
 This is an example of an R Markdown document.
 
-```{r}
-# R code chunk
-summary(cars)
-Example R Markdown
+```{r,eval = FALSE}
+# Setting the path
+setwd("C:/Users/lulut/Desktop/RRproject436819")
+today <- Sys.Date()
+year_ago <- as.Date(today - 365)
+#Create a vector containing WIG20 company stocks, specifying the time range of the data, from last year to today this year
+company_list <- c("ALR.WA", "ACP.WA", "PEO.WA", "CDR.WA", "CPS.WA", 
+                  "DNP.WA", "GTN.WA", "JSW.WA", "KGH.WA", "KRU.WA", 
+                  "LPP.WA", "MBK.WA", "OPL.WA", "PKO.WA", "PGE.WA", 
+                  "PKN.WA", "SPL.WA", "TPE.WA", "PZU.WA", "CCC.WA")
+#Load data from Yahoo Finance, and save it to an RDATA file
+library(quantmod)
+for (company in company_list) {
+  assign(company, getSymbols(company, src = 'yahoo', from = year_ago, to = today, auto.assign = FALSE))
+}      
+save.image(file = "Data.RData")
+print(ACP.WA)
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(GGally)
+library(xts)
+library(MASS)
+library(gridExtra)
+```
