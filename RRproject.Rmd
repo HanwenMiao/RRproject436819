@@ -1,0 +1,15 @@
+---
+title: "Portfolio optimization of WIG20 stock"
+author: "Hanwen Miao 436819"
+date: "2024-06-05"
+output: html_notebook
+---
+
+## Introduction
+
+This is an example of an R Markdown document.
+
+```{r}
+# R code chunk
+summary(cars)
+Example R Markdown
