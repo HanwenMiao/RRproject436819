@@ -85,35 +85,24 @@ for(i in 1:20){
 ```{r}
 #Define a function plot_graphic to draw charts, and draw the smoothed data of 20 companies (columns 6 to 9)
 plot_graphic <- function(company, company_string) {
-  matplot(company[, 6:9], type = "l", xlab = "Date", ylab = "Price", main = company_string, col = 1:4)
-  legend("topleft", legend = colnames(company)[6:9], col = 1:4, lty = 1, cex = 0.8)
+  plot(company[,6:9], type = "l", xlab = "Date", ylab = "Price", main = company_string,col = 1:4,legend.loc = "topleft")
 }
 
-for (company_name in company_list) {   
-  company_data <- eval(parse(text = company_name))
-  plot_graphic(company_data, company_name)
+for (i in 1:length(company_list)) {   
+  print(plot_graphic(eval(parse(text =company_list[i])), company_list[i]))
 }
 ```
 ```{r}
 #Calculate the difference of the Adjusted column
 #Use the lines function to add Kernel Density Estimation to an existing graph
-calculate_daily_returns <- function(company_data) {
-  company_data$`Daily Returns` <- diff(company_data$Adjusted) / lag(company_data$Adjusted, 1)
-  return(company_data)
+for (i in 1:length(company_list)){
+  temp = eval(parse(text =company_list[i]))
+  temp$`Daily Returns` <- diff(temp$Adjusted)/stats::lag(temp$Adjusted, k = 1)
+  assign(company_list[i],temp)
+  hist(na.omit(temp$`Daily Returns`), breaks=50, col='dodgerblue', main=company_list[i], xlab='Daily Returns', ylab='Count',ylim = c(0,40))
+  lines(density(na.omit(temp$`Daily Returns`)),col = "blue",lwd = 2)
 }
 
-plot_daily_returns_histogram <- function(company_data, company_name) {
-  daily_returns <- na.omit(company_data$`Daily Returns`)
-  hist(daily_returns, breaks = 50, col = 'dodgerblue', main = company_name, xlab = 'Daily Returns', ylab = 'Count', ylim = c(0, 40))
-  lines(density(daily_returns), col = "blue", lwd = 2)
-}
-
-for (company_name in company_list) {
-  company_data <- eval(parse(text = company_name))
-  company_data <- calculate_daily_returns(company_data)
-  assign(company_name, company_data)
-  plot_daily_returns_histogram(company_data, company_name)
-}
 ```
 ```{r}
 # Create dataframe with stock returns
@@ -127,3 +116,75 @@ stock_returns <- do.call(cbind,stock_returns)
 colnames(stock_returns) <- company_list
 head(stock_returns)
 ```
+```{r,fig.height=8,fig.width=8}
+# Plot pairplot
+
+
+ggpairs(na.omit(stock_returns), title = "Pairplot of Stock Returns")
+```
+```{r,fig.height=8,fig.width=8}
+# Calculate the correlation matrix
+# NA values will be ignored
+corr = cor(stock_returns,use = "complete.obs")
+  
+# Create the correlogram
+corrplot(corr, type = "lower", 
+         method = "shade", 
+         addCoef.col = "black", 
+         tl.col = "black", tl.srt = 45)
+
+```
+#We can see that there is a positive correlation between some stocks
+```{r,fig.height=8,fig.width=8}
+
+# Function to create plots
+create_plot <- function(data, x_label, y_label) {
+  ggplot(data = data, aes(x = x, y = y)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE, color = "blue") +
+    labs(x = x_label, y = y_label) +
+    theme_minimal()
+}
+
+# Create plots
+# get only the first 5 series
+k <- 5
+plots <- list()
+#as.data.frame ensures that the object is in data frame format -  data.dropna()
+stock_return <- as.data.frame(na.omit(stock_returns))
+
+# Loop through each combination of stocks
+for (i in 1:k) {
+  for (j in 1:k) {
+    # Plot histogram and density on diagonal
+    #Draw histogram and density plot on the diagonal, geom_histogram and geom_density correspond to sns.histplot.
+    if (i == j) {
+      data <- data.frame(returns = stock_return[, i])
+      plots[[length(plots) + 1]] <- ggplot(data, aes(x = returns)) +
+        geom_histogram(bins = 40, fill = "lightblue", color = "black") +
+        geom_density(alpha = 0.5, color = "red") +
+        labs(title = colnames(stock_return)[i], x = "Returns", y = "Frequency") +
+        theme_minimal()
+    }
+    # Plot scatter plot with regression line on lower triangle
+    if (i > j) {
+      data <- data.frame(x = stock_return[, j], y = stock_return[, i])
+      plots[[length(plots) + 1]] <- create_plot(data, colnames(stock_return)[j], colnames(stock_returns)[i])
+    }
+    # Plot contour plot on upper triangle
+    if (i < j) {
+      data <- data.frame(x = stock_return[, j], y = stock_return[, i])
+      plots[[length(plots) + 1]] <- ggplot(data, aes(x = x, y = y)) +
+        geom_density_2d() +
+        labs(title = paste(colnames(stock_returns)[i], "vs", colnames(stock_returns)[j]), x = colnames(stock_returns)[j], y = colnames(stock_returns)[i]) +
+        theme_minimal()
+    }
+  }
+}
+
+# Arrange plots in a grid
+grid.arrange(grobs = plots, ncol = k)
+
+
+```
+
