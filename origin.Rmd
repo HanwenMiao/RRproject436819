@@ -1,19 +1,22 @@
 ---
-title: "R Notebook"
+title: "RRproject2"
+author: "Hanwenmiao436819"
+date: "2024-06-08"
 output: html_notebook
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ```{r,eval = FALSE}
 # Setting the begining and ending
-setwd("C:/Users/HUAWEI/Desktop")
-today <- Sys.Date()
+setwd("C:/Users/lulut/Desktop/RR2")
+today <- as.Date("2022-02-23")
 year_ago <- as.Date(today - 365)
-# Four company for data extraction
-company_list <- c("ALR.WA", "ACP.WA", "PEO.WA", "CDR.WA", "CPS.WA", 
-                  "DNP.WA", "GTN.WA", "JSW.WA", "KGH.WA", "KRU.WA", 
-                  "LPP.WA", "MBK.WA", "OPL.WA", "PKO.WA", "PGE.WA", 
-                  "PKN.WA", "SPL.WA", "TPE.WA", "PZU.WA", "CCC.WA")
+# Three company for data extraction
+company_list <- c("TSLA", "MSFT", "AMZN")
+
 library(quantmod)
 for (company in company_list) {
   assign(company, getSymbols(company, src = 'yahoo', from = year_ago, to = today, auto.assign = FALSE))
@@ -27,7 +30,6 @@ library(xts)
 library(MASS)
 library(gridExtra)
 ```
-
 ```{r}
 rm(list = ls())
 load("Data.RData")
@@ -36,11 +38,8 @@ for(i in 1:20){
   print(head(eval(parse(text =company_list[i])), 5))
 }
 ```
-
 ```{r}
-str(ALR.WA)
-
-for(i in 1:20){
+for(i in 1:3){
   temp <- eval(parse(text =company_list[i]))
   colnames(temp) = c("Open","High","Low","Close","Volume","Adjusted")
   assign(company_list[i],temp)
@@ -50,21 +49,23 @@ rm(temp)
 
 ```{r,include=FALSE}
 Sys.setlocale ("LC_TIME", "English")
+
 ```
-
-
 ```{r}
 for(i in 1:length(company_list)){
   print(plot(eval(parse(text =company_list[i]))$Adjusted, main = paste0(company_list[i]," Adjusted Close Price"), ylab = "Price", xlab = "Date", type = "l", col = "blue"))
 }
 ```
+##Moving average¶
+Moving average - function whose value at each point is equal to some average value of the original function for the previous period.
 
+Formula for calculations:
 
-
+SUM = sum of prices for past x days; MA = SUM / x
 ```{r}
 MA_days <- c(10, 20, 30)
  
-for(i in 1:20){
+for(i in 1:3){
   temp = eval(parse(text =company_list[i]))
   temp$`MA10` <- rollmean(temp$Adjusted, k = 10, fill = NA,align = "right")
   temp$`MA20` <- rollmean(temp$Adjusted, k = 20, fill = NA,align = "right")
@@ -77,8 +78,6 @@ for(i in 1:20){
   print(head(eval(parse(text =company_list[i])), 5))
 }
 ```
-
-
 ```{r}
 plot_graphic <- function(company, company_string) {
   plot(company[,6:9], type = "l", xlab = "Date", ylab = "Price", main = company_string,col = 1:4,legend.loc = "topleft")
@@ -91,7 +90,6 @@ for (i in 1:length(company_list)) {
 }
 ```
 
-
 ```{r}
 for (i in 1:length(company_list)){
   temp = eval(parse(text =company_list[i]))
@@ -102,14 +100,11 @@ for (i in 1:length(company_list)){
 }
 
 ```
-
-
 ```{r}
 # Create dataframe with stock returns
 
-
 stock_returns <- list()
-for(i in 1:20){
+for(i in 1:3){
   stock_returns[[i]] <- eval(parse(text =company_list[i]))$`Daily Returns`
 }
 stock_returns <- do.call(cbind,stock_returns)
@@ -117,14 +112,14 @@ colnames(stock_returns) <- company_list
 head(stock_returns)
 ```
 
-
 ```{r,fig.height=8,fig.width=8}
 # Plot pairplot
-
-
-ggpairs(na.omit(stock_returns), title = "Pairplot of Stock Returns")
+stock_returns <- na.omit(stock_returns)
+ggpairs(stock_returns, 
+        upper = list(continuous = wrap("cor", size = 3)), 
+        lower = list(continuous = wrap("points", size = 0.5)),
+        diag = list(continuous = wrap("barDiag", bins = 30, fill = "blue")))
 ```
-
 
 ```{r,fig.height=8,fig.width=8}
 # Calculate the correlation matrix
@@ -137,184 +132,3 @@ corrplot(corr, type = "lower",
          tl.col = "black", tl.srt = 45)
 
 ```
-
-
-
-
-```{r,fig.height=8,fig.width=8}
-
-# Function to create plots
-create_plot <- function(data, x_label, y_label) {
-  ggplot(data = data, aes(x = x, y = y)) +
-    geom_point() +
-    geom_smooth(method = "lm", se = FALSE, color = "blue") +
-    labs(x = x_label, y = y_label) +
-    theme_minimal()
-}
-
-# Create plots
-k <- 5 ## get only the first 5 series, if you want, take it as 20
-plots <- list()
-stock_return <- as.data.frame(na.omit(stock_returns))
-
-# Loop through each combination of stocks
-for (i in 1:k) {
-  for (j in 1:k) {
-    # Plot histogram and density on diagonal
-    if (i == j) {
-      data <- data.frame(returns = stock_return[, i])
-      plots[[length(plots) + 1]] <- ggplot(data, aes(x = returns)) +
-        geom_histogram(bins = 40, fill = "lightblue", color = "black") +
-        geom_density(alpha = 0.5, color = "red") +
-        labs(title = colnames(stock_return)[i], x = "Returns", y = "Frequency") +
-        theme_minimal()
-    }
-    # Plot scatter plot with regression line on lower triangle
-    if (i > j) {
-      data <- data.frame(x = stock_return[, j], y = stock_return[, i])
-      plots[[length(plots) + 1]] <- create_plot(data, colnames(stock_return)[j], colnames(stock_returns)[i])
-    }
-    # Plot contour plot on upper triangle
-    if (i < j) {
-      data <- data.frame(x = stock_return[, j], y = stock_return[, i])
-      plots[[length(plots) + 1]] <- ggplot(data, aes(x = x, y = y)) +
-        geom_density_2d() +
-        labs(title = paste(colnames(stock_returns)[i], "vs", colnames(stock_returns)[j]), x = colnames(stock_returns)[j], y = colnames(stock_returns)[i]) +
-        theme_minimal()
-    }
-  }
-}
-
-# Arrange plots in a grid
-grid.arrange(grobs = plots, ncol = k)
-
-
-```
-
-```{r}
-# Calculate mean income for each stock
-stock_returns <- na.omit(stock_returns)
-mean_income <- apply(stock_returns, 2, mean)
-
-# Calculate covariance matrix of returns
-cov_returns <- cov(stock_returns)
-
-# Number of stocks
-count <- ncol(stock_returns)
-
-# Print mean income and covariance matrix
-print(mean_income)
-print(cov_returns)
-```
-
-
-```{r}
-# Function to generate random portfolio
-randomPortfolio <- function(input) {
-  set.seed(input)
-  share <- exp(rnorm(count))
-  share <- share / sum(share)
-  return(share)
-}
-
-# Function to calculate portfolio income
-IncomePortfolio <- function(Rand) {
-  return(sum(mean_income * Rand))
-}
-
-# Function to calculate portfolio risk
-RiskPortfolio <- function(Rand) {
-  return(sqrt(t(Rand) %*% cov_returns %*% Rand))
-}
-
-combinations <- 50000
-risk <- rep(0, combinations)
-income <- rep(0, combinations)
-portfolio <- matrix(0, nrow = combinations, ncol = count)
-
-# Loop to create new combinations of shares
-for (i in 1:combinations) {
-  rand <- randomPortfolio(i)
-  portfolio[i, ] <- rand
-  risk[i] <- RiskPortfolio(rand)
-  income[i] <- IncomePortfolio(rand)
-}
-
-```
-
-
-```{r}
-
-# Convert numpy arrays to R vectors/matrices
-risk <- risk * 100
-income <- income * 100
-
-# Find index of maximum Sharpe ratio
-MaxSharpRatio <- which.max(income / risk)
-
-# Create scatter plot
-scatter_plot <- ggplot() +
-  geom_point(data = data.frame(Risk = risk, Income = income), aes(x = Risk, y = Income), color = "blue", shape = 16) +
-  geom_point(data = data.frame(Risk = risk[MaxSharpRatio], Income = income[MaxSharpRatio]), aes(x = Risk, y = Income), color = "red", shape = 19, size = 3) +
-  labs(x = "Risk", y = "Income", title = "Portfolios") +
-  theme_minimal()
-
-# Show the plot
-print(scatter_plot)
-```
-
-
-```{r}
-best_port <- portfolio[MaxSharpRatio,]
-for (i in 1:length(company_list)) {
-  print(paste(company_list[i], ": ", best_port[i]))
-}
-```
-
-
-```{r}
-days <- 365
-dt <- 1 / days
-
-mu <- apply(stock_returns, 2, mean)
-sigma <- apply(stock_returns, 2, sd)
-
-monte_carlo <- function(start_price, days, mu, sigma) {
-  price <- rep(0, days)
-  price[1] <- start_price
-  
-  shock <- rep(0, days)
-  drift <- rep(0, days)
-  
-  for (x in 2:days) {
-    shock[x] <- rnorm(1, mean = mu * dt, sd = sigma * sqrt(dt))
-    drift[x] <- mu * dt
-    
-    price[x] <- price[x - 1] + (price[x - 1] * (drift[x] + shock[x]))
-  }
-  
-  return(price)
-}
-
-sim <- rep(0, 1000)
-
-
-for(j in 1:20){
-  start_price <- tail(eval(parse(text =company_list[j]))$Adjusted,1)
-  result <- monte_carlo(start_price, days, mu[company_list[j]], sigma[company_list[j]])
-  sim[1] <- result[days]
-  plot(result, type = "l", xlab = "Days", ylab = "Price", col = 1,main = paste0("Monte Carlo analysis for ", company_list[j]),ylim = c(0.88*start_price,1.12*start_price))
-  for (i in 2:1000) {
-  result <- monte_carlo(start_price, days, mu[company_list[j]], sigma[company_list[j]])
-  sim[i] <- result[days]
-  lines(result, col = i)
-  }
-  hist(sim, breaks = 100, main = "Histogram of Monte Carlo Simulations", xlab = "Price")
-  text(0.6, 0.7, paste("Mean: ", mean(sim), "\nStd: ", sd(sim), "\nStart Price: ", start_price))
-}
-
-
-```
-
-
-
