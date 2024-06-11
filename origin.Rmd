@@ -1,17 +1,33 @@
 ---
-title: "RRproject2"
+title: "RRproject-original"
 author: "Hanwenmiao436819"
 date: "2024-06-08"
 output: html_notebook
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+##### Project Translation
+
+# The original project's URL is: https://www.kaggle.com/code/artemburenok/stock-analysis-monte-carlo-build-portfolio
+
+# Author: ARTEM BURENOK
+
+#### Purpose of Analysis:
+
+# - Build moving averages of various stocks
+# - Determine correlations between stock returns
+# - Create an optimal portfolio
+# - Try to predict the future behavior of the stocks
+
+### Code Reproduction Explanation
+
+# I have converted the original project's Python code to R code. Due to Twitter's delisting, 
+# there is no stock price information for Twitter on Yahoo Finance. 
+# Therefore, the new investment portfolio consists of three companies, 
+# which may slightly affect the results.
 
 ```{r,eval = FALSE}
-# Setting the begining and ending
-setwd("C:/Users/lulut/Desktop/RR2")
+# Setting working path
+setwd("C:/Users/lulut/Desktop/RRproject436819")
 today <- as.Date("2022-02-23")
 year_ago <- as.Date(today - 365)
 # Three company for data extraction
@@ -30,6 +46,7 @@ library(xts)
 library(MASS)
 library(gridExtra)
 ```
+
 ```{r}
 rm(list = ls())
 load("Data.RData")
@@ -130,5 +147,182 @@ corrplot(corr, type = "lower",
          method = "shade", 
          addCoef.col = "black", 
          tl.col = "black", tl.srt = 45)
+
+```
+## Amazon and Microsoft have the most correlated daily profits
+```{r}
+
+# Function to create plots
+create_plot <- function(data, x_label, y_label) {
+  ggplot(data = data, aes(x = x, y = y)) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(method = "lm", se = FALSE, color = "blue") +
+    labs(x = x_label, y = y_label) +
+    theme_minimal()
+}
+
+# Create plots
+k <- 3  
+plots <- list()
+stock_return <- as.data.frame(na.omit(stock_returns))
+
+# Loop through each combination of stocks
+for (i in 1:k) {
+  for (j in 1:k) {
+    # Plot histogram and density on diagonal
+    if (i == j) {
+      data <- data.frame(returns = stock_return[, i])
+      plots[[length(plots) + 1]] <- ggplot(data, aes(x = returns)) +
+        geom_histogram(bins = 40, fill = "lightblue", color = "black") +
+        geom_density(alpha = 0.5, color = "red") +
+        labs(title = colnames(stock_return)[i], x = "Returns", y = "Frequency") +
+        theme_minimal()
+    }
+    # Plot scatter plot with regression line on lower triangle
+    if (i > j) {
+      data <- data.frame(x = stock_return[, j], y = stock_return[, i])
+      plots[[length(plots) + 1]] <- create_plot(data, colnames(stock_return)[j], colnames(stock_returns)[i])
+    }
+    # Plot contour plot on upper triangle
+    if (i < j) {
+      data <- data.frame(x = stock_return[, j], y = stock_return[, i])
+      plots[[length(plots) + 1]] <- ggplot(data, aes(x = x, y = y)) +
+        geom_density_2d() +
+        labs(title = paste(colnames(stock_returns)[i], "vs", colnames(stock_returns)[j]), x = colnames(stock_returns)[j], y = colnames(stock_returns)[i]) +
+        theme_minimal()
+    }
+  }
+}
+
+# Arrange plots in a grid with larger plots
+grid.arrange(grobs = plots, ncol = k, nrow = k, top = "Stock Returns Pair Plot")
+
+```
+
+##Portfolio strategy
+#Let's try to make an optimal portfolio of four stocks. Following the classical theory, it is necessary to minimize risk and maximize profitability. We will generate random ratios of stocks, calculate the risk and profitability of each portfolio according to the given formulas.
+
+#The expected return of the portfolio is the total expected return of the securities included in it, weighted taking into account their share in the portfolio.
+
+```{r}
+# Calculate mean income for each stock
+stock_returns <- na.omit(stock_returns)
+mean_income <- apply(stock_returns, 2, mean)
+
+# Calculate covariance matrix of returns
+cov_returns <- cov(stock_returns)
+
+# Number of stocks
+count <- ncol(stock_returns)
+
+# Print mean income and covariance matrix
+print(mean_income)
+print(cov_returns)
+```
+```{r}
+# Function to generate random portfolio
+randomPortfolio <- function(input) {
+  set.seed(input)
+  share <- exp(rnorm(count))
+  share <- share / sum(share)
+  return(share)
+}
+
+# Function to calculate portfolio income
+IncomePortfolio <- function(Rand) {
+  return(sum(mean_income * Rand))
+}
+
+# Function to calculate portfolio risk
+RiskPortfolio <- function(Rand) {
+  return(sqrt(t(Rand) %*% cov_returns %*% Rand))
+}
+
+combinations <- 4000
+risk <- rep(0, combinations)
+income <- rep(0, combinations)
+portfolio <- matrix(0, nrow = combinations, ncol = count)
+
+# Loop to create new combinations of shares
+for (i in 1:combinations) {
+  rand <- randomPortfolio(i)
+  portfolio[i, ] <- rand
+  risk[i] <- RiskPortfolio(rand)
+  income[i] <- IncomePortfolio(rand)
+}
+
+```
+
+```{r}
+
+# Convert numpy arrays to R vectors/matrices
+risk <- risk * 100
+income <- income * 100
+
+# Find index of maximum Sharpe ratio
+MaxSharpRatio <- which.max(income / risk)
+
+# Create scatter plot
+scatter_plot <- ggplot() +
+  geom_point(data = data.frame(Risk = risk, Income = income), aes(x = Risk, y = Income), color = "blue", shape = 16) +
+  geom_point(data = data.frame(Risk = risk[MaxSharpRatio], Income = income[MaxSharpRatio]), aes(x = Risk, y = Income), color = "red", shape = 19, size = 3) +
+  labs(x = "Risk", y = "Income", title = "Portfolios and max sharpe ratio portfolio") +
+  theme_minimal()
+
+# Show the plot
+print(scatter_plot)
+```
+
+```{r}
+best_port <- portfolio[MaxSharpRatio,]
+for (i in 1:length(company_list)) {
+  print(paste(company_list[i], ": ", best_port[i]))
+}
+```
+##Due to the absence of one stock, the weights are different. However, looking at the results, heavily investing in Microsoft from 2021 to 2022 was the right move. Although Tesla didn't perform well in 2022, its stock rose by 90% in 2023 !
+
+##Try to predict price behavior with method Monte Carlo
+
+```{r}
+days <- 365
+dt <- 1 / days
+
+mu <- apply(stock_returns, 2, mean)
+sigma <- apply(stock_returns, 2, sd)
+
+monte_carlo <- function(start_price, days, mu, sigma) {
+  price <- rep(0, days)
+  price[1] <- start_price
+  
+  shock <- rep(0, days)
+  drift <- rep(0, days)
+  
+  for (x in 2:days) {
+    shock[x] <- rnorm(1, mean = mu * dt, sd = sigma * sqrt(dt))
+    drift[x] <- mu * dt
+    
+    price[x] <- price[x - 1] + (price[x - 1] * (drift[x] + shock[x]))
+  }
+  
+  return(price)
+}
+
+sim <- rep(0, 1000)
+
+
+for(j in 1:3){
+  start_price <- tail(eval(parse(text =company_list[j]))$Adjusted,1)
+  result <- monte_carlo(start_price, days, mu[company_list[j]], sigma[company_list[j]])
+  sim[1] <- result[days]
+  plot(result, type = "l", xlab = "Days", ylab = "Price", col = 1,main = paste0("Monte Carlo analysis for ", company_list[j]),ylim = c(0.88*start_price,1.12*start_price))
+  for (i in 2:1000) {
+  result <- monte_carlo(start_price, days, mu[company_list[j]], sigma[company_list[j]])
+  sim[i] <- result[days]
+  lines(result, col = i)
+  }
+  hist(sim, breaks = 100, main = "Histogram of Monte Carlo Simulations", xlab = "Price")
+  text(0.6, 0.7, paste("Mean: ", mean(sim), "\nStd: ", sd(sim), "\nStart Price: ", start_price))
+}
+
 
 ```
