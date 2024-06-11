@@ -267,4 +267,50 @@ for (i in 1:length(company_list)) {
   print(paste(company_list[i], ": ", best_port[i]))
 }
 ```
+```{r}
+#Perform Monte Carlo simulation on stocks to predict possible changes in stock prices in the next year 
+days <- 365
+dt <- 1 / days
 
+#mu: average return of each stock 
+mu <- apply(stock_returns, 2, mean)
+sigma <- apply(stock_returns, 2, sd)
+
+
+monte_carlo <- function(start_price, days, mu, sigma) {
+  price <- rep(0, days)
+  price[1] <- start_price
+#shock: The random component of daily price changes.
+#drift: The deterministic component of daily price changes.  
+  shock <- rep(0, days)
+  drift <- rep(0, days)
+  
+  for (x in 2:days) {
+    shock[x] <- rnorm(1, mean = mu * dt, sd = sigma * sqrt(dt))
+    drift[x] <- mu * dt
+    
+    price[x] <- price[x - 1] + (price[x - 1] * (drift[x] + shock[x]))
+  }
+  
+  return(price)
+}
+
+sim <- rep(0, 1000)
+
+
+for(j in 1:20){
+  start_price <- tail(eval(parse(text =company_list[j]))$Adjusted,1)
+  result <- monte_carlo(start_price, days, mu[company_list[j]], sigma[company_list[j]])
+  sim[1] <- result[days]
+  plot(result, type = "l", xlab = "Days", ylab = "Price", col = 1,main = paste0("Monte Carlo analysis for ", company_list[j]),ylim = c(0.88*start_price,1.12*start_price))
+  for (i in 2:1000) {
+  result <- monte_carlo(start_price, days, mu[company_list[j]], sigma[company_list[j]])
+  sim[i] <- result[days]
+  lines(result, col = i)
+  }
+  hist(sim, breaks = 100, main = "Histogram of Monte Carlo Simulations", xlab = "Price")
+  text(0.6, 0.7, paste("Mean: ", mean(sim), "\nStd: ", sd(sim), "\nStart Price: ", start_price))
+}
+
+
+```
