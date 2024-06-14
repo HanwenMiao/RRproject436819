@@ -1,0 +1,13 @@
+The original project’s URL is: https://www.kaggle.com/code/artemburenok/stock-analysis-monte-carlo-build-portfolio
+Author: ARTEM BURENOK
+Purpose of Analysis:
+- Build moving averages of various stocks
+- Determine correlations between stock returns
+- Create an optimal portfolio
+- Try to predict the future behavior of the stocks
+Code Reproduction Explanation
+I have converted the original project’s Python code to R code. Due to Twitter’s delisting, there is no stock price information for Twitter on Yahoo Finance.
+Therefore, the new investment portfolio consists of three companies, which may slightly affect the results.I also made another version which used 20 Polish stocks WIG20 to build and optimize the portfolio.
+The code file called RRproject.Rmd. Actually I completed it first and then I did another one used the original stocks.
+
+Hanwen Miao
